@@ -31,9 +31,11 @@ scripts/  the generator that produces everything above
 
 Everything is a plain SVG with no external font dependency — the wordmark letterforms are
 drawn as strokes, not set in a typeface — so they render identically everywhere. The icon
-itself (`logo/svg/w6w-iconmark.svg`) is a hand-authored filled glyph, not part of that stroke
-system; it doesn't read as the numeral "6" up close, so it's used standalone (mark, avatar,
-favicon, banner tile) and the wordmark/lockup text keeps its own thin-stroke "6".
+itself (`logo/svg/w6w-iconmark.svg`) is a hand-authored single stroked line (one path, butt
+caps, `stroke-width` 117 on a 1024 canvas), not part of that stroke system; it doesn't read as
+the numeral "6", so it's used standalone (mark, avatar, favicon, banner tile) and next to the
+wordmark in the lockup, whose text keeps its own "6". Every generated asset reuses that one path
+as a stroke, so recolouring means setting `stroke`, not `fill`.
 
 `logo/png/` mirrors every non-mono SVG in `logo/svg/` as a size ladder: `16`–`1024`px for the
 square assets (`iconmark`, `mark`) and `320`–`2560`px wide for the two-dimensional ones
@@ -44,7 +46,9 @@ instead of being tied to one exact shade of dark.
 ## Building
 
 Assets are generated, never hand-edited — except `logo/svg/w6w-iconmark.svg` itself, which is the
-one hand-authored source. Change its path data to change the icon everywhere; change the
+one hand-authored source (`logo/svg/logo.svg` carries the wordmark outline and the same iconmark;
+if you redraw the icon, update it there too). Change its path data to change the icon everywhere — and
+re-measure `ICON_BBOX` in the script, which is its painted box, stroke included; change the
 wordmark geometry or the palette in `scripts/build.mjs`; then re-run, so nothing can drift
 between assets:
 

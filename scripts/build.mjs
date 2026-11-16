@@ -27,32 +27,72 @@ export const C = {
   muted: "#9AA3B2",
 };
 
-// ── the wordmark + lockup ────────────────────────────────────────────────────
-// Sourced verbatim from logo/logo.svg — the iconmark laid out next to "W6W" set
-// in a real display sans and converted to outlines, so it carries no font
-// dependency and is never hand-drawn here. Read at build time (not copy-pasted)
-// so it can't drift from that source file; recolour it, don't redraw it.
-const LOGO_SRC = readFileSync(R("logo/svg/logo.svg"), "utf8");
-const logoShapes = [...LOGO_SRC.matchAll(/<path d="([^"]+)"/g)].map((m) => m[1]);
-const [, , , WORD_PATH] = logoShapes; // shapes 0-2 = iconmark, 3 = "W6W" outline
-const logoCircle = LOGO_SRC.match(/<circle cx="([^"]+)" cy="([^"]+)" r="([^"]+)"/);
-const LOCKUP_CIRCLE = { cx: logoCircle[1], cy: logoCircle[2], r: logoCircle[3] };
-const LOCKUP_ICON_PATHS = logoShapes.slice(0, 3);
+// ── the iconmark ──────────────────────────────────────────────────────────────
+// Sourced from logo/svg/w6w-iconmark.svg (hand-authored, 0 0 1024 1024, ONE
+// stroked path) — the one place that geometry is drawn. Read at build time so
+// every icon-bearing asset below reuses the same path through `iconAt`, scaled
+// and recoloured, and can never drift from the source file.
+const ICON_SRC = readFileSync(R("logo/svg/w6w-iconmark.svg"), "utf8");
+const ICON_PATH = ICON_SRC.match(/<path d="([^"]+)"/)[1];
+const ICON_STROKE_W = +ICON_SRC.match(/stroke-width="([^"]+)"/)[1];
+// measured PAINTED bbox of that path, stroke included (rendered in Chromium and
+// scanned for alpha — getBBox() ignores stroke) — used to centre/scale consistently
+const ICON_BBOX = { minX: 126, minY: 102, maxX: 964, maxY: 891 };
+const ICON_W = ICON_BBOX.maxX - ICON_BBOX.minX;
+const ICON_H = ICON_BBOX.maxY - ICON_BBOX.minY;
+const ICON_CX = (ICON_BBOX.minX + ICON_BBOX.maxX) / 2;
+const ICON_CY = (ICON_BBOX.minY + ICON_BBOX.maxY) / 2;
+const ICON_MAXDIM = Math.max(ICON_W, ICON_H);
 
-// measured bboxes of logo.svg's content (SVG getBBox) — icon-only paths+circle,
-// the "W6W" path alone, and the two together
-const LOCKUP_BBOX = { minX: 67.9016, minY: 105.2733, maxX: 1880.44, maxY: 579.2417 };
+// a stroke, not a fill: the colour goes on `stroke`, and the group's transform
+// scales the stroke width along with the path
+const iconBody = () => `<path d="${ICON_PATH}"/>`;
+const iconGroup = (color, transform) =>
+  `  <g${transform ? ` transform="${transform}"` : ""} fill="none" stroke="${color}" stroke-width="${ICON_STROKE_W}">${iconBody()}</g>`;
+
+// places the icon so its longer dimension is `size` units, centred at (cx, cy)
+const iconAt = (color, cx, cy, size) => {
+  const scale = size / ICON_MAXDIM;
+  return iconGroup(color, `translate(${cx},${cy}) scale(${scale}) translate(${-ICON_CX},${-ICON_CY})`);
+};
+const ICON_FILL_FRAC = 0.7; // icon fills ~70% of a 96 tile
+const FAVICON_FILL_FRAC = 0.8; // bolder at small sizes
+
+// ── the wordmark + lockup ────────────────────────────────────────────────────
+// The "W6W" outline is sourced verbatim from logo/svg/logo.svg — set in a real
+// display sans and converted to outlines, so it carries no font dependency and
+// is never hand-drawn here. Read at build time (not copy-pasted) so it can't
+// drift from that source file; recolour it, don't redraw it. logo.svg's icon is
+// the stroked iconmark placed in LOCKUP_ICON_SLOT below (the same placement the
+// lockup uses), so the build takes only the filled "W6W" path from it.
+const LOGO_SRC = readFileSync(R("logo/svg/logo.svg"), "utf8");
+const WORD_PATH = LOGO_SRC.match(/<path d="([^"]+)" fill=/)[1]; // the one filled path = "W6W"
+
+// the icon's slot in logo.svg (the box the iconmark is fitted into) and the
+// measured bbox (SVG getBBox) of the "W6W" path alone
+const LOCKUP_ICON_SLOT = { minX: 67.9016, minY: 105.2733, maxX: 536.0766, maxY: 579.2417 };
 const WORD_BBOX = { minX: 676.41, minY: 177.578, maxX: 1880.44, maxY: 511.4447 };
+// the iconmark sits centred in that slot at the slot's longer dimension, so the
+// lockup keeps its proportions and the gap to the wordmark
+const SLOT_CX = (LOCKUP_ICON_SLOT.minX + LOCKUP_ICON_SLOT.maxX) / 2;
+const SLOT_CY = (LOCKUP_ICON_SLOT.minY + LOCKUP_ICON_SLOT.maxY) / 2;
+const SLOT_SIZE = Math.max(LOCKUP_ICON_SLOT.maxX - LOCKUP_ICON_SLOT.minX, LOCKUP_ICON_SLOT.maxY - LOCKUP_ICON_SLOT.minY);
+const slotScale = SLOT_SIZE / ICON_MAXDIM;
+const LOCKUP_BBOX = {
+  minX: Math.min(SLOT_CX - (ICON_W * slotScale) / 2, WORD_BBOX.minX),
+  minY: Math.min(SLOT_CY - (ICON_H * slotScale) / 2, WORD_BBOX.minY),
+  maxX: Math.max(SLOT_CX + (ICON_W * slotScale) / 2, WORD_BBOX.maxX),
+  maxY: Math.max(SLOT_CY + (ICON_H * slotScale) / 2, WORD_BBOX.maxY),
+};
 const LOCKUP_W = LOCKUP_BBOX.maxX - LOCKUP_BBOX.minX;
 const LOCKUP_H = LOCKUP_BBOX.maxY - LOCKUP_BBOX.minY;
 const WORD_W = WORD_BBOX.maxX - WORD_BBOX.minX;
 const WORD_H = WORD_BBOX.maxY - WORD_BBOX.minY;
 
 const lockupBody = (color) =>
-  `  <g fill="${color}" transform="translate(${-LOCKUP_BBOX.minX},${-LOCKUP_BBOX.minY})">` +
-  LOCKUP_ICON_PATHS.map((d) => `<path d="${d}"/>`).join("") +
-  `<circle cx="${LOCKUP_CIRCLE.cx}" cy="${LOCKUP_CIRCLE.cy}" r="${LOCKUP_CIRCLE.r}"/>` +
-  `<path d="${WORD_PATH}"/></g>`;
+  `  <g transform="translate(${-LOCKUP_BBOX.minX},${-LOCKUP_BBOX.minY})">\n` +
+  iconAt(color, SLOT_CX, SLOT_CY, SLOT_SIZE) + "\n" +
+  `  <path fill="${color}" d="${WORD_PATH}"/></g>`;
 const wordBody = (color) =>
   `  <path fill="${color}" transform="translate(${-WORD_BBOX.minX},${-WORD_BBOX.minY})" d="${WORD_PATH}"/>`;
 
@@ -65,38 +105,6 @@ const lockup = (color) => {
   const w = LOCKUP_W + 2 * PAD, h = LOCKUP_H + 2 * PAD;
   return svg(`-${PAD} -${PAD} ${w} ${h}`, +w.toFixed(2), +h.toFixed(2), lockupBody(color));
 };
-
-// ── the iconmark ──────────────────────────────────────────────────────────────
-// Sourced verbatim from logo/w6w-iconmark.svg (hand-authored, 0 0 1024 1024, 4
-// filled shapes) — the one place that geometry is drawn. Every icon-bearing asset
-// below reuses this same path data through `iconAt`, scaled and recoloured, so it
-// can never drift from the source file.
-const ICON_PATHS = [
-  "M137.103 391.061C137.103 292.929 510.044 15.2589 510.044 203.16C510.044 391.061 329.474 341.437 329.474 391.061C329.474 440.684 434.806 417.266 434.806 499.229C434.806 581.192 329.474 579.997 329.474 621.018C329.474 662.039 515.618 612.415 510.044 785.819C504.471 959.223 137.103 696.608 137.103 621.018C137.103 545.428 215.224 549.968 215.224 506.039C215.224 462.111 137.103 489.193 137.103 391.061Z",
-  "M472 373.97C472 272.209 858.979 -15.7295 858.979 179.12C858.979 373.97 671.612 322.511 671.612 373.97C671.612 425.428 780.909 401.144 780.909 486.138C780.909 571.132 671.612 569.893 671.612 612.431C671.612 654.969 864.762 603.509 858.979 783.326C853.196 963.143 472 690.817 472 612.431C472 534.046 553.062 538.753 553.062 493.2C553.062 447.648 472 475.731 472 373.97Z",
-  "M394.072 812.063C398.295 802.768 401.773 792.532 405.142 782.068C392.738 771.314 368.663 756.754 325.572 737.063C174.572 668.063 376.072 714.563 459.072 656.063C542.072 597.563 687.572 757.563 552.572 705.563C438.557 661.647 423.449 725.219 405.142 782.068C436.205 808.999 394.072 812.063 394.072 812.063Z",
-];
-const ICON_CIRCLE = { cx: 425.5, cy: 597.5, r: 36.5 };
-// measured bbox of the shapes above (SVG getBBox) — used to centre/scale consistently
-const ICON_BBOX = { minX: 137.103, minY: 113.0, maxX: 859.106, maxY: 843.939 };
-const ICON_W = ICON_BBOX.maxX - ICON_BBOX.minX;
-const ICON_H = ICON_BBOX.maxY - ICON_BBOX.minY;
-const ICON_CX = (ICON_BBOX.minX + ICON_BBOX.maxX) / 2;
-const ICON_CY = (ICON_BBOX.minY + ICON_BBOX.maxY) / 2;
-const ICON_MAXDIM = Math.max(ICON_W, ICON_H);
-
-const iconBody = () =>
-  ICON_PATHS.map((d) => `<path d="${d}"/>`).join("") +
-  `<circle cx="${ICON_CIRCLE.cx}" cy="${ICON_CIRCLE.cy}" r="${ICON_CIRCLE.r}"/>`;
-
-// places the icon so its longer dimension is `size` units, centred at (cx, cy)
-const iconAt = (fill, cx, cy, size) => {
-  const scale = size / ICON_MAXDIM;
-  const t = `translate(${cx},${cy}) scale(${scale}) translate(${-ICON_CX},${-ICON_CY})`;
-  return `  <g transform="${t}" fill="${fill}">${iconBody()}</g>`;
-};
-const ICON_FILL_FRAC = 0.7; // icon fills ~70% of a 96 tile
-const FAVICON_FILL_FRAC = 0.8; // bolder at small sizes
 
 const svg = (vb, w, h, body, label = "w6w") =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="${w}" height="${h}" role="img" aria-label="${label}">\n${body}\n</svg>\n`;
@@ -153,9 +161,8 @@ const files = {
   // Paired with the hand-authored logo/svg/w6w-iconmark.svg (black, for print/
   // one-colour use on light surfaces): the same geometry in paper, for the
   // same use on dark ones. Not part of `files`' hand-edited exception — this
-  // one IS generated, from the shared ICON_PATHS/ICON_CIRCLE the mark already
-  // uses, so it can't drift from them.
-  "logo/svg/w6w-iconmark-ondark.svg": svg("0 0 1024 1024", 1024, 1024, `  <g fill="${C.paper}">${iconBody()}</g>`),
+  // one IS generated, from the same ICON_PATH the mark uses, so it can't drift.
+  "logo/svg/w6w-iconmark-ondark.svg": svg("0 0 1024 1024", 1024, 1024, iconGroup(C.paper)),
   "avatar/avatar.svg": mark(C.accent, C.paper),
   "avatar/favicon.svg": svg("0 0 96 96", 96, 96,
     [tile(C.accent, 20), iconAt(C.paper, 48, 48, 96 * FAVICON_FILL_FRAC)].join("\n")),
