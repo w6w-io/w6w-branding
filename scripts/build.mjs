@@ -73,16 +73,19 @@ const WORD_PATH = LOGO_SRC.match(/<path d="([^"]+)" fill=/)[1]; // the one fille
 const LOCKUP_ICON_SLOT = { minX: 67.9016, minY: 105.2733, maxX: 536.0766, maxY: 579.2417 };
 const WORD_BBOX = { minX: 676.41, minY: 177.578, maxX: 1880.44, maxY: 511.4447 };
 // the iconmark sits centred in that slot at the slot's longer dimension, so the
-// lockup keeps its proportions and the gap to the wordmark
+// lockup keeps its proportions and the gap to the wordmark. The lockup's box
+// is the WHOLE slot, not just the icon's painted area: the current icon is
+// shorter than the slot, and a tighter box would make the lockup wider at any
+// fixed height (the site topbar sets it at 27px and overflowed a 390px screen).
 const SLOT_CX = (LOCKUP_ICON_SLOT.minX + LOCKUP_ICON_SLOT.maxX) / 2;
 const SLOT_CY = (LOCKUP_ICON_SLOT.minY + LOCKUP_ICON_SLOT.maxY) / 2;
 const SLOT_SIZE = Math.max(LOCKUP_ICON_SLOT.maxX - LOCKUP_ICON_SLOT.minX, LOCKUP_ICON_SLOT.maxY - LOCKUP_ICON_SLOT.minY);
 const slotScale = SLOT_SIZE / ICON_MAXDIM;
 const LOCKUP_BBOX = {
-  minX: Math.min(SLOT_CX - (ICON_W * slotScale) / 2, WORD_BBOX.minX),
-  minY: Math.min(SLOT_CY - (ICON_H * slotScale) / 2, WORD_BBOX.minY),
-  maxX: Math.max(SLOT_CX + (ICON_W * slotScale) / 2, WORD_BBOX.maxX),
-  maxY: Math.max(SLOT_CY + (ICON_H * slotScale) / 2, WORD_BBOX.maxY),
+  minX: Math.min(SLOT_CX - (ICON_W * slotScale) / 2, LOCKUP_ICON_SLOT.minX, WORD_BBOX.minX),
+  minY: Math.min(SLOT_CY - (ICON_H * slotScale) / 2, LOCKUP_ICON_SLOT.minY, WORD_BBOX.minY),
+  maxX: Math.max(SLOT_CX + (ICON_W * slotScale) / 2, LOCKUP_ICON_SLOT.maxX, WORD_BBOX.maxX),
+  maxY: Math.max(SLOT_CY + (ICON_H * slotScale) / 2, LOCKUP_ICON_SLOT.maxY, WORD_BBOX.maxY),
 };
 const LOCKUP_W = LOCKUP_BBOX.maxX - LOCKUP_BBOX.minX;
 const LOCKUP_H = LOCKUP_BBOX.maxY - LOCKUP_BBOX.minY;
